@@ -1,4 +1,5 @@
 import api from './api';
+import { ExcelExportService } from '../utils/excelExport';
 
 export const issueService = {
   // Get all issues with pagination and filtering
@@ -107,6 +108,29 @@ export const issueService = {
     window.URL.revokeObjectURL(downloadUrl);
     
     return { success: true, message: 'Export downloaded successfully' };
+  },
+
+  // Frontend-based Excel export with enhanced formatting
+  exportToExcelFrontend: async (params = {}) => {
+    try {
+      // Fetch all issues (without pagination for export)
+      const response = await api.get('/issues', {
+        params: {
+          limit: 10000, // Large limit to get all issues
+          ...params
+        }
+      });
+
+      if (response.success && response.data?.issues) {
+        const result = ExcelExportService.exportWithFilters(response.data.issues, params);
+        return result;
+      } else {
+        throw new Error('Failed to fetch issues for export');
+      }
+    } catch (error) {
+      console.error('Frontend export error:', error);
+      throw new Error(error.message || 'Export failed');
+    }
   },
 };
 

@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useIssues } from '../hooks/useIssues';
 import { getStatusBadgeClasses, truncateText } from '../utils/helpers';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, formatTimeToSolve } from '../utils/dateUtils';
 import { ISSUE_STATUS_OPTIONS } from '../constants';
 import { issueService } from '../services/issueService';
 import toast from 'react-hot-toast';
@@ -339,6 +339,9 @@ const IssuesList = () => {
                 >
                   Submitted
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Time to Solve
+                </th>
                 <th scope="col" className="relative px-6 py-3">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -384,6 +387,12 @@ const IssuesList = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(issue.submittedAt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {issue.status === 'SOLVED' && issue.solvedAt 
+                      ? formatTimeToSolve(issue.submittedAt, issue.solvedAt)
+                      : '-'
+                    }
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex space-x-2">

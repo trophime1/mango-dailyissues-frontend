@@ -97,7 +97,7 @@ cp .env.example .env
 
 Update `.env` with your settings:
 ```env
-REACT_APP_API_URL=http://localhost:5000/api
+REACT_APP_API_URL=https://mango-dailyissues.onrender.com/api
 REACT_APP_NAME=Issue Tracker
 REACT_APP_VERSION=1.0.0
 ```
@@ -192,7 +192,7 @@ Based on your Prisma schema:
 
 ```env
 # API Configuration
-REACT_APP_API_URL=http://localhost:5000/api  # Backend API URL
+REACT_APP_API_URL=https://mango-dailyissues.onrender.com/api  # Backend API URL
 
 # Application Configuration
 REACT_APP_NAME=Issue Tracker                 # Application name

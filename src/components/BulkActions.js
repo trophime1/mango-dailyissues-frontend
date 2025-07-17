@@ -6,6 +6,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { issueService } from '../services/issueService';
+import { ExcelExportService } from '../utils/excelExport';
 import ConfirmationDialog from './ConfirmationDialog';
 import toast from 'react-hot-toast';
 
@@ -45,40 +46,11 @@ const BulkActions = ({ selectedIssues, onActionComplete, onClearSelection }) => 
   const handleBulkExport = async () => {
     setLoading(true);
     try {
-      // Create a blob with the selected issues data
-      const exportData = selectedIssues.map(issue => ({
-        'Issue Number': issue.issueNumber,
-        'Title': issue.title || '',
-        'Description': issue.description || '',
-        'Location': issue.location,
-        'Type': issue.issueType,
-        'Status': issue.status,
-        'Submitted At': new Date(issue.submittedAt).toLocaleString(),
-        'Solved At': issue.solvedAt ? new Date(issue.solvedAt).toLocaleString() : '',
-      }));
-
-      // Convert to CSV
-      const headers = Object.keys(exportData[0]);
-      const csvContent = [
-        headers.join(','),
-        ...exportData.map(row => 
-          headers.map(header => `"${row[header]}"`).join(',')
-        )
-      ].join('\n');
-
-      // Download as CSV
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `selected-issues-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success('Selected issues exported successfully!');
+      // Use our Excel export service for consistent formatting
+      const result = ExcelExportService.generateExcelFile(selectedIssues);
+      toast.success(`${selectedIssues.length} selected issues exported successfully!`);
     } catch (err) {
+      console.error('Bulk export error:', err);
       toast.error('Failed to export selected issues');
     } finally {
       setLoading(false);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStats } from '../hooks/useStats';
 import { formatNumber } from '../utils/helpers';
-import { formatDate, formatDateForInput } from '../utils/dateUtils';
+import { formatDate, formatDateForInput, getDetailedTimeDifference } from '../utils/dateUtils';
 import { issueService } from '../services/issueService';
 import LoadingSpinner from './LoadingSpinner';
 import { 
@@ -22,6 +22,39 @@ const Reports = () => {
 
   const { stats, loading, error, refresh } = useStats(dateRange);
 
+  // Helper function to format average solve time from minutes
+  const formatAvgSolveTime = (minutes) => {
+    if (!minutes || minutes === 0) return '0m';
+    
+    const totalMinutes = Math.round(minutes);
+    
+    if (totalMinutes < 60) {
+      return `${totalMinutes}m`;
+    }
+    
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    if (totalHours < 24) {
+      return remainingMinutes > 0 
+        ? `${totalHours}h ${remainingMinutes}m`
+        : `${totalHours}h`;
+    }
+    
+    const days = Math.floor(totalHours / 24);
+    const remainingHours = totalHours % 24;
+    
+    let result = `${days}d`;
+    if (remainingHours > 0) {
+      result += ` ${remainingHours}h`;
+    }
+    if (remainingMinutes > 0) {
+      result += ` ${remainingMinutes}m`;
+    }
+    
+    return result;
+  };
+
   const handleDateRangeChange = (field, value) => {
     setDateRange(prev => ({
       ...prev,
@@ -32,7 +65,7 @@ const Reports = () => {
   const handleExport = async (status = '') => {
     setExportLoading(true);
     try {
-      await issueService.exportToExcel({
+      await issueService.exportToExcelFrontend({
         ...dateRange,
         status,
       });
@@ -269,7 +302,7 @@ const Reports = () => {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Avg. Solve Time</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stats.avgSolveTimeMinutes} min</dd>
+                    <dd className="text-lg font-medium text-gray-900">{formatAvgSolveTime(stats.avgSolveTimeMinutes)}</dd>
                   </dl>
                 </div>
               </div>
@@ -323,7 +356,7 @@ const Reports = () => {
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Average Resolution Time:</dt>
-                  <dd className="text-sm font-medium text-gray-900">{stats.avgSolveTimeMinutes} minutes</dd>
+                  <dd className="text-sm font-medium text-gray-900">{formatAvgSolveTime(stats.avgSolveTimeMinutes)}</dd>
                 </div>
               </dl>
             </div>

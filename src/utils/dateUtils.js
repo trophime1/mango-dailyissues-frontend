@@ -54,3 +54,64 @@ export const getTimeDifference = (startDate, endDate = new Date()) => {
     return '-';
   }
 };
+
+// Enhanced time difference calculation matching backend format (Xd Yh Zm)
+export const getDetailedTimeDifference = (startDate, endDate = new Date()) => {
+  if (!startDate) return '-';
+  
+  try {
+    const start = typeof startDate === 'string' ? parseISO(startDate) : startDate;
+    const end = typeof endDate === 'string' ? parseISO(endDate) : endDate;
+    
+    if (!isValid(start) || !isValid(end)) return '-';
+    
+    const diffInMs = end - start;
+    const totalMinutes = Math.round(diffInMs / (1000 * 60));
+    
+    if (totalMinutes < 60) {
+      return `${totalMinutes}m`;
+    }
+    
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    if (totalHours < 24) {
+      return remainingMinutes > 0 
+        ? `${totalHours}h ${remainingMinutes}m`
+        : `${totalHours}h`;
+    }
+    
+    const days = Math.floor(totalHours / 24);
+    const remainingHours = totalHours % 24;
+    
+    let result = `${days}d`;
+    if (remainingHours > 0) {
+      result += ` ${remainingHours}h`;
+    }
+    if (remainingMinutes > 0) {
+      result += ` ${remainingMinutes}m`;
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Detailed time difference calculation error:', error);
+    return '-';
+  }
+};
+
+// Format time to solve for solved issues
+export const formatTimeToSolve = (submittedAt, solvedAt) => {
+  if (!submittedAt || !solvedAt) return '-';
+  
+  try {
+    const start = typeof submittedAt === 'string' ? parseISO(submittedAt) : submittedAt;
+    const end = typeof solvedAt === 'string' ? parseISO(solvedAt) : solvedAt;
+    
+    if (!isValid(start) || !isValid(end)) return '-';
+    
+    return getDetailedTimeDifference(start, end);
+  } catch (error) {
+    console.error('Time to solve calculation error:', error);
+    return '-';
+  }
+};

@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useStats } from '../hooks/useStats';
 import { formatNumber } from '../utils/helpers';
-import { formatDateForInput } from '../utils/dateUtils';
+import { formatDateForInput, getDetailedTimeDifference } from '../utils/dateUtils';
 import { issueService } from '../services/issueService';
 import LoadingSpinner from './LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -54,6 +54,39 @@ const Dashboard = () => {
 
   const { stats, loading, error, refresh } = useStats(dateRange);
 
+  // Helper function to format average solve time from minutes
+  const formatAvgSolveTime = (minutes) => {
+    if (!minutes || minutes === 0) return '0m';
+    
+    const totalMinutes = Math.round(minutes);
+    
+    if (totalMinutes < 60) {
+      return `${totalMinutes}m`;
+    }
+    
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    if (totalHours < 24) {
+      return remainingMinutes > 0 
+        ? `${totalHours}h ${remainingMinutes}m`
+        : `${totalHours}h`;
+    }
+    
+    const days = Math.floor(totalHours / 24);
+    const remainingHours = totalHours % 24;
+    
+    let result = `${days}d`;
+    if (remainingHours > 0) {
+      result += ` ${remainingHours}h`;
+    }
+    if (remainingMinutes > 0) {
+      result += ` ${remainingMinutes}m`;
+    }
+    
+    return result;
+  };
+
   const handleDateRangeChange = (field, value) => {
     setDateRange(prev => ({
       ...prev,
@@ -64,7 +97,7 @@ const Dashboard = () => {
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      await issueService.exportToExcel(dateRange);
+      await issueService.exportToExcelFrontend(dateRange);
       toast.success('Export downloaded successfully!');
     } catch (err) {
       toast.error(err.message || 'Export failed');
@@ -266,10 +299,10 @@ const Dashboard = () => {
           />
           <StatCard
             title="Avg. Solve Time"
-            value={stats.avgSolveTimeMinutes}
+            value={formatAvgSolveTime(stats.avgSolveTimeMinutes)}
             icon={ClockIcon}
             color="green"
-            subtitle="Minutes"
+            subtitle="Average resolution time"
           />
         </div>
       )}
