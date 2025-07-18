@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { issueService } from '../services/issueService';
 import { ISSUE_TYPE_OPTIONS, ISSUE_STATUS_OPTIONS } from '../constants';
 import { getStatusBadgeClasses } from '../utils/helpers';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, formatDateTimeForInput } from '../utils/dateUtils';
 import toast from 'react-hot-toast';
 
 // Validation schema
@@ -25,6 +25,8 @@ const issueSchema = z.object({
 
 const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [editingSolvedTime, setEditingSolvedTime] = useState(false);
+  const [solvedTimeValue, setSolvedTimeValue] = useState('');
   const isReadonly = mode === 'view';
   const isEdit = mode === 'edit';
   const isCreate = mode === 'create';
@@ -79,7 +81,40 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
 
   const handleClose = () => {
     reset();
+    setEditingSolvedTime(false);
+    setSolvedTimeValue('');
     onClose();
+  };
+
+  const handleSolvedTimeEdit = () => {
+    setEditingSolvedTime(true);
+    // Set current solved time or current time if not solved
+    if (issue.solvedAt) {
+      setSolvedTimeValue(formatDateTimeForInput(issue.solvedAt));
+    } else {
+      setSolvedTimeValue(formatDateTimeForInput(new Date()));
+    }
+  };
+
+  const handleSolvedTimeCancel = () => {
+    setEditingSolvedTime(false);
+    setSolvedTimeValue('');
+  };
+
+  const handleSolvedTimeSubmit = async () => {
+    setLoading(true);
+    try {
+      const solvedAt = solvedTimeValue ? new Date(solvedTimeValue).toISOString() : null;
+      await issueService.updateSolvedTime(issue.id, solvedAt);
+      toast.success('Solved time updated successfully!');
+      setEditingSolvedTime(false);
+      setSolvedTimeValue('');
+      onSuccess(); // Refresh the issue list
+    } catch (error) {
+      toast.error(error.message || 'Failed to update solved time');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getModalTitle = () => {
@@ -185,12 +220,56 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
                             <label className="block text-sm font-medium text-gray-700">Submitted At</label>
                             <div className="mt-1 text-sm text-gray-900">{formatDate(issue.submittedAt)}</div>
                           </div>
-                          {issue.solvedAt && (
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">Solved At</label>
-                              <div className="mt-1 text-sm text-gray-900">{formatDate(issue.solvedAt)}</div>
-                            </div>
-                          )}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Solved At</label>
+                            {editingSolvedTime ? (
+                              <div className="mt-1 space-y-2">
+                                <input
+                                  type="datetime-local"
+                                  value={solvedTimeValue}
+                                  onChange={(e) => setSolvedTimeValue(e.target.value)}
+                                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                                <div className="flex space-x-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleSolvedTimeSubmit}
+                                    disabled={loading}
+                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+                                  >
+                                    {loading ? 'Saving...' : 'Save'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleSolvedTimeCancel}
+                                    className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSolvedTimeValue('')}
+                                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-1 flex items-center space-x-2">
+                                <span className="text-sm text-gray-900">
+                                  {issue.solvedAt ? formatDate(issue.solvedAt) : 'Not solved yet'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={handleSolvedTimeEdit}
+                                  className="text-blue-600 hover:text-blue-800 text-xs"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}

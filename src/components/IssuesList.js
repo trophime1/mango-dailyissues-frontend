@@ -9,6 +9,7 @@ import {
   TrashIcon,
   ArrowPathIcon,
   FunnelIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useIssues } from '../hooks/useIssues';
 import { getStatusBadgeClasses, truncateText } from '../utils/helpers';
@@ -136,6 +137,11 @@ const IssuesList = () => {
 
   const openModal = (mode, issue = null) => {
     setModalMode(mode);
+    setSelectedIssue(issue);
+  };
+
+  const openTimeEditModal = (issue) => {
+    setModalMode('view'); // Use view mode but the modal will detect time editing
     setSelectedIssue(issue);
   };
 
@@ -409,6 +415,13 @@ const IssuesList = () => {
                         title="Edit"
                       >
                         <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => openTimeEditModal(issue)}
+                        className="text-purple-600 hover:text-purple-900"
+                        title="Set Solved Time"
+                      >
+                        <ClockIcon className="h-4 w-4" />
                       </button>
                       {issue.status === 'OPEN' && (
                         <button

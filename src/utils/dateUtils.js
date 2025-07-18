@@ -99,6 +99,20 @@ export const getDetailedTimeDifference = (startDate, endDate = new Date()) => {
   }
 };
 
+// Format date for datetime-local input
+export const formatDateTimeForInput = (date) => {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    if (!isValid(dateObj)) return '';
+    return format(dateObj, 'yyyy-MM-dd\'T\'HH:mm');
+  } catch (error) {
+    console.error('DateTime formatting error:', error);
+    return '';
+  }
+};
+
 // Format time to solve for solved issues
 export const formatTimeToSolve = (submittedAt, solvedAt) => {
   if (!submittedAt || !solvedAt) return '-';
