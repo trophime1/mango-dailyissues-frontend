@@ -157,9 +157,7 @@ const IssuesList = () => {
 
   // Filter issues by search term locally
   const filteredIssues = issues.filter(issue =>
-    issue.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     issue.issueNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    issue.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     issue.location?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -238,7 +236,7 @@ const IssuesList = () => {
             </div>
             <input
               type="text"
-              placeholder="Search issues by title, number, description, or location..."
+              placeholder="Search issues by number or location..."
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -273,7 +271,6 @@ const IssuesList = () => {
                   <option value="submittedAt">Date Submitted</option>
                   <option value="solvedAt">Date Solved</option>
                   <option value="issueNumber">Issue Number</option>
-                  <option value="title">Title</option>
                 </select>
               </div>
               <div>
@@ -322,13 +319,6 @@ const IssuesList = () => {
                 >
                   Issue #
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('title')}
-                >
-                  Title
-                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Location
                 </th>
@@ -369,16 +359,6 @@ const IssuesList = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {issue.issueNumber}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    <div>
-                      <div className="font-medium">{issue.title || 'Untitled'}</div>
-                      {issue.description && (
-                        <div className="text-gray-500 text-xs mt-1">
-                          {truncateText(issue.description, 60)}
-                        </div>
-                      )}
-                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {issue.location}
@@ -489,22 +469,56 @@ const IssuesList = () => {
                   </button>
                   
                   {/* Page numbers */}
-                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => changePage(pageNum)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          pageNum === pagination.page
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+                  {(() => {
+                    const currentPage = pagination.page;
+                    const totalPages = pagination.pages;
+                    const maxVisiblePages = 5;
+                    
+                    let startPage, endPage;
+                    
+                    if (totalPages <= maxVisiblePages) {
+                      // Less than maxVisiblePages total pages so show all
+                      startPage = 1;
+                      endPage = totalPages;
+                    } else {
+                      // More than maxVisiblePages total pages so calculate start and end pages
+                      const maxPagesBeforeCurrentPage = Math.floor(maxVisiblePages / 2);
+                      const maxPagesAfterCurrentPage = Math.ceil(maxVisiblePages / 2) - 1;
+                      
+                      if (currentPage <= maxPagesBeforeCurrentPage) {
+                        // Current page near the start
+                        startPage = 1;
+                        endPage = maxVisiblePages;
+                      } else if (currentPage + maxPagesAfterCurrentPage >= totalPages) {
+                        // Current page near the end
+                        startPage = totalPages - maxVisiblePages + 1;
+                        endPage = totalPages;
+                      } else {
+                        // Current page somewhere in the middle
+                        startPage = currentPage - maxPagesBeforeCurrentPage;
+                        endPage = currentPage + maxPagesAfterCurrentPage;
+                      }
+                    }
+                    
+                    const pages = [];
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => changePage(i)}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            i === currentPage
+                              ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    
+                    return pages;
+                  })()}
                   
                   <button
                     onClick={() => changePage(pagination.page + 1)}

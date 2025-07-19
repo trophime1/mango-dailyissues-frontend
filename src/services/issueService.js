@@ -63,6 +63,11 @@ export const issueService = {
     return api.patch(`/issues/${id}/solved-time`, { solvedAt });
   },
 
+  // Update submitted time manually
+  updateSubmittedTime: async (id, submittedAt) => {
+    return api.patch(`/issues/${id}/submitted-time`, { submittedAt });
+  },
+
   // Get statistics
   getStats: async (params = {}) => {
     const queryParams = new URLSearchParams();

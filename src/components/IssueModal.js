@@ -14,8 +14,6 @@ import toast from 'react-hot-toast';
 // Validation schema
 const issueSchema = z.object({
   issueNumber: z.string().min(1, 'Issue number is required'),
-  title: z.string().optional(),
-  description: z.string().optional(),
   location: z.string().min(1, 'Location is required'),
   issueType: z.enum(['SLOWNESS', 'NO_CONNECTION', 'ON_OFF', 'RELOCATION', 'OFFLINE', 'OTHER'], {
     errorMap: () => ({ message: 'Please select a valid issue type' }),
@@ -27,6 +25,8 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [editingSolvedTime, setEditingSolvedTime] = useState(false);
   const [solvedTimeValue, setSolvedTimeValue] = useState('');
+  const [editingSubmittedTime, setEditingSubmittedTime] = useState(false);
+  const [submittedTimeValue, setSubmittedTimeValue] = useState('');
   const isReadonly = mode === 'view';
   const isEdit = mode === 'edit';
   const isCreate = mode === 'create';
@@ -41,8 +41,6 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
     resolver: zodResolver(issueSchema),
     defaultValues: {
       issueNumber: '',
-      title: '',
-      description: '',
       location: '',
       issueType: '',
       status: 'OPEN',
@@ -53,8 +51,6 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
   useEffect(() => {
     if (issue && (isEdit || isReadonly)) {
       setValue('issueNumber', issue.issueNumber || '');
-      setValue('title', issue.title || '');
-      setValue('description', issue.description || '');
       setValue('location', issue.location || '');
       setValue('issueType', issue.issueType || '');
       setValue('status', issue.status || 'OPEN');
@@ -83,6 +79,8 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
     reset();
     setEditingSolvedTime(false);
     setSolvedTimeValue('');
+    setEditingSubmittedTime(false);
+    setSubmittedTimeValue('');
     onClose();
   };
 
@@ -112,6 +110,32 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
       onSuccess(); // Refresh the issue list
     } catch (error) {
       toast.error(error.message || 'Failed to update solved time');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmittedTimeEdit = () => {
+    setEditingSubmittedTime(true);
+    setSubmittedTimeValue(formatDateTimeForInput(issue.submittedAt));
+  };
+
+  const handleSubmittedTimeCancel = () => {
+    setEditingSubmittedTime(false);
+    setSubmittedTimeValue('');
+  };
+
+  const handleSubmittedTimeSubmit = async () => {
+    setLoading(true);
+    try {
+      const submittedAt = new Date(submittedTimeValue).toISOString();
+      await issueService.updateSubmittedTime(issue.id, submittedAt);
+      toast.success('Submitted time updated successfully!');
+      setEditingSubmittedTime(false);
+      setSubmittedTimeValue('');
+      onSuccess(); // Refresh the issue list
+    } catch (error) {
+      toast.error(error.message || 'Failed to update submitted time');
     } finally {
       setLoading(false);
     }
@@ -192,17 +216,7 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Title</label>
-                          <div className="mt-1 text-sm text-gray-900">{issue.title || 'No title'}</div>
-                        </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Description</label>
-                          <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">
-                            {issue.description || 'No description'}
-                          </div>
-                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -218,7 +232,46 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700">Submitted At</label>
-                            <div className="mt-1 text-sm text-gray-900">{formatDate(issue.submittedAt)}</div>
+                            {editingSubmittedTime ? (
+                              <div className="mt-1 space-y-2">
+                                <input
+                                  type="datetime-local"
+                                  value={submittedTimeValue}
+                                  onChange={(e) => setSubmittedTimeValue(e.target.value)}
+                                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                                <div className="flex space-x-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleSubmittedTimeSubmit}
+                                    disabled={loading}
+                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+                                  >
+                                    {loading ? 'Saving...' : 'Save'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleSubmittedTimeCancel}
+                                    className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-1 flex items-center space-x-2">
+                                <span className="text-sm text-gray-900">
+                                  {formatDate(issue.submittedAt)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={handleSubmittedTimeEdit}
+                                  className="text-blue-600 hover:text-blue-800 text-xs"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700">Solved At</label>
@@ -293,37 +346,7 @@ const IssueModal = ({ mode, issue, onClose, onSuccess }) => {
                           )}
                         </div>
 
-                        <div>
-                          <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                            Title
-                          </label>
-                          <input
-                            type="text"
-                            id="title"
-                            {...register('title')}
-                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="Enter issue title"
-                          />
-                          {errors.title && (
-                            <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
-                          )}
-                        </div>
 
-                        <div>
-                          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                            Description
-                          </label>
-                          <textarea
-                            id="description"
-                            rows={4}
-                            {...register('description')}
-                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="Enter issue description"
-                          />
-                          {errors.description && (
-                            <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
-                          )}
-                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
