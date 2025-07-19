@@ -43,7 +43,7 @@ export class ExcelExportService {
    * @returns void (downloads the file)
    */
   static generateExcelFile(issues) {
-    const excelData = issues.map(issue => {
+    const excelData = issues.map((issue, index) => {
       const submittedAt = new Date(issue.submittedAt);
       const solvedAt = issue.solvedAt ? new Date(issue.solvedAt) : null;
       
@@ -54,6 +54,7 @@ export class ExcelExportService {
       }
 
       return {
+        '#': index + 1, // Add index number starting from 1
         'Issue Number': issue.issueNumber,
         'Location': issue.location,
         'Issue Type': issue.issueType,
@@ -69,6 +70,7 @@ export class ExcelExportService {
     
     // Set column widths
     const columnWidths = [
+      { wch: 8 },  // # (Index)
       { wch: 15 }, // Issue Number
       { wch: 25 }, // Location
       { wch: 15 }, // Issue Type

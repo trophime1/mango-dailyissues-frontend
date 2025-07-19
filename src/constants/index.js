@@ -33,7 +33,7 @@ export const ISSUE_TYPE_OPTIONS = [
 // Pagination defaults
 export const PAGINATION_DEFAULTS = {
   page: 1,
-  limit: 10,
+  limit: 25, // Increased from 10 to 25 for better performance
   sortBy: 'submittedAt',
   sortOrder: 'desc',
 };

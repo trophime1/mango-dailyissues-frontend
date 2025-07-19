@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon,
@@ -21,6 +21,7 @@ import IssueModal from './IssueModal';
 import ConfirmationDialog from './ConfirmationDialog';
 import LoadingSpinner from './LoadingSpinner';
 import BulkActions from './BulkActions';
+import IssueRow from './IssueRow';
 
 const IssuesList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,21 +50,21 @@ const IssuesList = () => {
     refresh,
   } = useIssues();
 
-  const handleSearch = (value) => {
+  // Debounced search handler to improve performance
+  const handleSearch = useCallback((value) => {
     setSearchTerm(value);
-    // In a real app, you might want to debounce this or implement server-side search
-  };
+  }, []);
 
-  const handleStatusFilter = (status) => {
+  const handleStatusFilter = useCallback((status) => {
     updateFilters({ status });
-  };
+  }, [updateFilters]);
 
-  const handleSort = (sortBy) => {
+  const handleSort = useCallback((sortBy) => {
     const newSortOrder = filters.sortBy === sortBy && filters.sortOrder === 'desc' ? 'asc' : 'desc';
     updateFilters({ sortBy, sortOrder: newSortOrder });
-  };
+  }, [filters.sortBy, filters.sortOrder, updateFilters]);
 
-  const handleSolveIssue = async (issueId) => {
+  const handleSolveIssue = useCallback(async (issueId) => {
     setConfirmDialog({
       isOpen: true,
       type: 'solve',
@@ -71,9 +72,9 @@ const IssuesList = () => {
       title: 'Mark Issue as Solved',
       message: 'Are you sure you want to mark this issue as solved? This action cannot be undone.',
     });
-  };
+  }, []);
 
-  const handleDeleteIssue = async (issueId) => {
+  const handleDeleteIssue = useCallback(async (issueId) => {
     setConfirmDialog({
       isOpen: true,
       type: 'delete',
@@ -81,7 +82,7 @@ const IssuesList = () => {
       title: 'Delete Issue',
       message: 'Are you sure you want to delete this issue? This action cannot be undone and all data will be permanently lost.',
     });
-  };
+  }, []);
 
   const executeAction = async () => {
     const { type, issueId } = confirmDialog;
@@ -155,11 +156,16 @@ const IssuesList = () => {
     refresh();
   };
 
-  // Filter issues by search term locally
-  const filteredIssues = issues.filter(issue =>
-    issue.issueNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    issue.location?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Memoized filtered issues to prevent unnecessary re-calculations
+  const filteredIssues = useMemo(() => {
+    if (!searchTerm.trim()) return issues;
+    
+    const lowercaseSearch = searchTerm.toLowerCase();
+    return issues.filter(issue =>
+      issue.issueNumber?.toLowerCase().includes(lowercaseSearch) ||
+      issue.location?.toLowerCase().includes(lowercaseSearch)
+    );
+  }, [issues, searchTerm]);
 
   if (loading && issues.length === 0) {
     return <LoadingSpinner text="Loading issues..." />;
@@ -312,6 +318,9 @@ const IssuesList = () => {
                     onChange={handleSelectAll}
                   />
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  #
+                </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -344,87 +353,25 @@ const IssuesList = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredIssues.map((issue) => (
-                <tr 
-                  key={issue.id} 
-                  className={`hover:bg-gray-50 ${selectedIssues.some(selected => selected.id === issue.id) ? 'bg-blue-50' : ''}`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      checked={selectedIssues.some(selected => selected.id === issue.id)}
-                      onChange={() => handleSelectIssue(issue)}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {issue.issueNumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {issue.location}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {issue.issueType}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={getStatusBadgeClasses(issue.status)}>
-                      {issue.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(issue.submittedAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {issue.status === 'SOLVED' && issue.solvedAt 
-                      ? formatTimeToSolve(issue.submittedAt, issue.solvedAt)
-                      : '-'
-                    }
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => openModal('view', issue)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="View"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => openModal('edit', issue)}
-                        className="text-yellow-600 hover:text-yellow-900"
-                        title="Edit"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => openTimeEditModal(issue)}
-                        className="text-purple-600 hover:text-purple-900"
-                        title="Set Solved Time"
-                      >
-                        <ClockIcon className="h-4 w-4" />
-                      </button>
-                      {issue.status === 'OPEN' && (
-                        <button
-                          onClick={() => handleSolveIssue(issue.id)}
-                          disabled={actionLoading === issue.id}
-                          className="text-green-600 hover:text-green-900 disabled:opacity-50"
-                          title="Mark as Solved"
-                        >
-                          <CheckIcon className="h-4 w-4" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDeleteIssue(issue.id)}
-                        disabled={actionLoading === issue.id}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                        title="Delete"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredIssues.map((issue, index) => {
+                // Calculate the actual index based on pagination
+                const actualIndex = (pagination.page - 1) * pagination.limit + index + 1;
+                return (
+                  <IssueRow
+                    key={issue.id}
+                    issue={issue}
+                    index={actualIndex}
+                    isSelected={selectedIssues.some(selected => selected.id === issue.id)}
+                    onSelect={handleSelectIssue}
+                    onView={(issue) => openModal('view', issue)}
+                    onEdit={(issue) => openModal('edit', issue)}
+                    onTimeEdit={openTimeEditModal}
+                    onSolve={handleSolveIssue}
+                    onDelete={handleDeleteIssue}
+                    actionLoading={actionLoading}
+                  />
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { issueService } from '../services/issueService';
 import { PAGINATION_DEFAULTS } from '../constants';
 import toast from 'react-hot-toast';
@@ -9,7 +9,7 @@ export const useIssues = (initialParams = {}) => {
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 25, // Increase default page size for better performance
     total: 0,
     pages: 0,
   });
@@ -21,58 +21,140 @@ export const useIssues = (initialParams = {}) => {
     ...initialParams,
   });
 
-  // Fetch issues
-  const fetchIssues = useCallback(async (params = {}) => {
+  // Cache for API responses to avoid unnecessary requests
+  const cacheRef = useRef(new Map());
+  const abortControllerRef = useRef(null);
+  
+  // Create cache key for current request
+  const cacheKey = useMemo(() => {
+    return JSON.stringify({
+      ...filters,
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+  }, [filters, pagination.page, pagination.limit]);
+
+  // Fetch issues with caching and request cancellation
+  const fetchIssues = useCallback(async (params = {}, bypassCache = false) => {
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const queryParams = {
+      ...filters,
+      page: pagination.page,
+      limit: pagination.limit,
+      ...params,
+    };
+
+    const requestCacheKey = JSON.stringify(queryParams);
+    
+    // Check cache first (unless bypassing cache)
+    if (!bypassCache && cacheRef.current.has(requestCacheKey)) {
+      const cached = cacheRef.current.get(requestCacheKey);
+      setIssues(cached.issues);
+      setPagination(cached.pagination);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+    
     try {
-      const queryParams = {
-        ...filters,
-        page: pagination.page,
-        limit: pagination.limit,
-        ...params,
-      };
-      
-      const response = await issueService.getAllIssues(queryParams);
+      const response = await issueService.getAllIssues(queryParams, {
+        signal: abortControllerRef.current.signal
+      });
       
       if (response.success) {
         setIssues(response.data.issues);
         setPagination(response.data.pagination);
+        
+        // Cache the response (limit cache size to prevent memory issues)
+        if (cacheRef.current.size > 50) {
+          // Remove oldest entries
+          const firstKey = cacheRef.current.keys().next().value;
+          cacheRef.current.delete(firstKey);
+        }
+        
+        cacheRef.current.set(requestCacheKey, {
+          issues: response.data.issues,
+          pagination: response.data.pagination,
+          timestamp: Date.now()
+        });
       }
     } catch (err) {
-      setError(err.message);
-      toast.error(err.message);
+      // Don't show error for aborted requests
+      if (err.name !== 'AbortError' && err.message !== 'canceled') {
+        setError(err.message);
+        toast.error(err.message);
+      }
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   }, [filters, pagination.page, pagination.limit]);
 
-  // Update filters and refetch
+  // Debounced filter updates to prevent excessive API calls
   const updateFilters = useCallback((newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page
+    // Clear cache when filters change
+    cacheRef.current.clear();
   }, []);
 
-  // Change page
+  // Change page (optimized to use cache)
   const changePage = useCallback((newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
   }, []);
 
-  // Change page size
+  // Change page size (clear cache when changing page size)
   const changePageSize = useCallback((newLimit) => {
     setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    cacheRef.current.clear(); // Clear cache when page size changes
   }, []);
 
-  // Refresh issues
+  // Refresh issues (bypass cache)
   const refresh = useCallback(() => {
-    fetchIssues();
+    cacheRef.current.clear(); // Clear cache on manual refresh
+    fetchIssues({}, true); // Bypass cache
   }, [fetchIssues]);
 
-  // Load issues on component mount and when dependencies change
+  // Debounce effect for automatic fetching
+  const timeoutRef = useRef(null);
+  
   useEffect(() => {
-    fetchIssues();
-  }, [fetchIssues]);
+    // Clear previous timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Set new timeout for debounced fetch
+    timeoutRef.current = setTimeout(() => {
+      fetchIssues();
+    }, 100); // 100ms debounce
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [cacheKey]); // Use memoized cache key to prevent unnecessary re-renders
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     issues,

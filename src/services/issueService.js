@@ -3,7 +3,7 @@ import { ExcelExportService } from '../utils/excelExport';
 
 export const issueService = {
   // Get all issues with pagination and filtering
-  getAllIssues: async (params = {}) => {
+  getAllIssues: async (params = {}, config = {}) => {
     const queryParams = new URLSearchParams();
     
     if (params.status) queryParams.append('status', params.status);
@@ -15,7 +15,7 @@ export const issueService = {
     const queryString = queryParams.toString();
     const url = queryString ? `/issues?${queryString}` : '/issues';
     
-    return api.get(url);
+    return api.get(url, config); // Pass config with signal for request cancellation
   },
 
   // Get issue by ID
